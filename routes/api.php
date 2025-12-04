@@ -2,23 +2,26 @@
 
 use App\Http\Controllers\API\PatientController;
 use App\Http\Controllers\API\DashboardController;
+use App\Http\Controllers\API\UserProfileController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ArticleController;
-use App\Http\Controllers\JenishewanController;
+use App\Http\Controllers\JenisHewanController;
 use App\Http\Controllers\HewanController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\SystemInfoController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/media', [MediaController::class, 'index']);
 Route::get('/media/statistics', [MediaController::class, 'statistics']);
 
-require __DIR__.'/auth.php';
+require __DIR__. '/auth.php';
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/media', [MediaController::class, 'store']);
@@ -26,7 +29,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::apiResource('articles', ArticleController::class)->except('index');
 
-    Route::apiResource('jenis-hewan', JenishewanController::class);
+    Route::apiResource('jenis-hewan', JenisHewanController::class);
     Route::apiResource('hewan', HewanController::class);
     Route::apiResource('patients',PatientController::class);
 
@@ -52,6 +55,14 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 });
 
 
-Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Get current user
+    Route::get('/user', function (Request $request) {
+        return response()->json(['user'=>$request->user()]);
+    });
+
+    // Profile endpoints
+    Route::get('/profile', [UserProfileController::class, 'show']);
+    Route::put('/profile', [UserProfileController::class, 'update']);
+    Route::put('/profile/password', [UserProfileController::class, 'updatePassword']);
 });

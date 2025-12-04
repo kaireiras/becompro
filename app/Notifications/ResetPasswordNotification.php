@@ -5,14 +5,13 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Log;
 
 class ResetPasswordNotification extends Notification
 {
     use Queueable;
 
-    protected $token;
-    protected $email;
+    public $token;
+    public $email;
 
     /**
      * Create a new notification instance.
@@ -21,11 +20,6 @@ class ResetPasswordNotification extends Notification
     {
         $this->token = $token;
         $this->email = $email;
-        
-        Log::info('📨 ResetPasswordNotification created', [
-            'email' => $email,
-            'token' => substr($token, 0, 10) . '...'
-        ]);
     }
 
     /**
@@ -35,10 +29,6 @@ class ResetPasswordNotification extends Notification
      */
     public function via($notifiable): array
     {
-        Log::info('📬 Notification via channels', [
-            'channels' => ['mail']
-        ]);
-        
         return ['mail'];
     }
 
@@ -48,23 +38,16 @@ class ResetPasswordNotification extends Notification
     public function toMail($notifiable): MailMessage
     {
         // ✅ URL ke Next.js frontend
-        $resetUrl = env('FRONTEND_URL', 'http://localhost:3000') 
-                   . '/auth/resetPassword?token=' . $this->token 
-                   . '&email=' . urlencode($this->email);
-
-        Log::info('📧 Building reset password email', [
-            'to' => $notifiable->email,
-            'reset_url' => $resetUrl
-        ]);
+        $resetUrl = config('app.frontend_url') . '/auth/resetPassword?token=' . $this->token . '&email=' . urlencode($this->email);
 
         return (new MailMessage)
             ->subject('Reset Password - PAD Clinic')
-            ->greeting('Halo, ' . $notifiable->username . '!')
+            ->greeting('Halo!')
             ->line('Anda menerima email ini karena kami menerima permintaan reset password untuk akun Anda.')
             ->action('Reset Password', $resetUrl)
-            ->line('Link reset password ini akan kadaluarsa dalam **60 menit**.')
+            ->line('Link reset password ini akan kadaluarsa dalam 60 menit.')
             ->line('Jika Anda tidak meminta reset password, abaikan email ini.')
-            ->salutation('Salam, Tim PAD Clinic');
+            ->salutation('Terima kasih, Tim PAD Clinic');
     }
 
     /**

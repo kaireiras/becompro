@@ -8,6 +8,7 @@ use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Http\Request; 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\TestEmail;
+use App\Http\Controllers\SendMailController;
 
 Route::get('/', function () {
     return ['Laravel' => app()->version()];
@@ -30,16 +31,15 @@ Route::get('/auth/google/callback', function(){
     // dd($user);
 
     Auth::login($user);
-    return redirect(config("app.frontend_url"). "/dashboardAdmin");
+    return redirect(config("app.frontend_url"). "/");
     
 });
 
-Route::get('/test-mail', function () {
-    $data = ['message' => 'Ini percobaan kirim email Laravel menggunakan Gmail SMTP.'];
-    \Mail::to('rakaiahmadmaulana@gmail.com')->send(new \App\Mail\TestEmail($data));
-    return '✅ Email percobaan dikirim!';
-});
-
+// // ✅ Override Fortify routes dengan 404 (disable)
+// Route::post('forgot-password', fn() => abort(404));
+// Route::get('forgot-password', fn() => abort(404));
+// Route::post('reset-password', fn() => abort(404));
+// Route::get('reset-password/{token}', fn() => abort(404));
 
 // Route::post('/forgot-password', function(Request $request){
 //     $request -> validate(['email'=> 'required|email']);

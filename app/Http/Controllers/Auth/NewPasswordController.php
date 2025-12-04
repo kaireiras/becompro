@@ -9,25 +9,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 
 class NewPasswordController extends Controller
 {
     /**
-     * Handle an incoming new password request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
+     * Handle reset password request
      */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
             'token' => ['required'],
             'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'min:8', 'confirmed'],
         ]);
 
-        // Attempt to reset the user's password
+        // Reset password
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user) use ($request) {
@@ -40,17 +37,15 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If password reset successful
-        if ($status == Password::PASSWORD_RESET) {
-            return response()->json([
-                'message' => 'Password berhasil direset.',
-                'status' => __($status)
+        if ($status != Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => [__($status)],
             ]);
         }
 
-        // If failed, throw validation exception
-        throw ValidationException::withMessages([
-            'email' => [__($status)],
+        return response()->json([
+            'message' => 'Password berhasil direset.',
+            'status' => 'passwords.reset'
         ]);
     }
 }
