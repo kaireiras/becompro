@@ -9,7 +9,11 @@ class JenisHewan extends Model
     protected $table = 'jenis_hewan';
     protected $primaryKey = 'id_jenisHewan';
     public $incrementing = true;
-    protected $fillable = ['nama_jenis'];
+    protected $fillable = ['nama_jenis',  'id_pasien'];
+
+    public function pasien(){
+        return $this->belongsTo(User::class,'id_pasien');
+    }
 
     public function hewans()
     {

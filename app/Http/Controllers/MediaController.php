@@ -12,11 +12,14 @@ class MediaController extends Controller
 {
     /**
      * Get all media with optional filter by days
+     * ✅ Exclude category 'foto-cards' from gallery
      */
     public function index(Request $request)
     {
         try {
-            $query = Media::query()->orderBy('created_at', 'desc');
+            $query = Media::query()
+                ->where('category', '!=', 'foto-cards') // ✅ Exclude foto-cards
+                ->orderBy('created_at', 'desc');
 
             if ($request->has('days') && $request->days !== 'all') {
                 $days = (int) $request->days;
@@ -30,36 +33,28 @@ class MediaController extends Controller
                 $imageUrl = null;
                 
                 if ($item->image_url) {
-                    // Jika sudah full URL (http/https), gunakan langsung
                     if (str_starts_with($item->image_url, 'http')) {
                         $imageUrl = $item->image_url;
                     } else {
-                        // ✅ Jika path relatif (media/xxx.webp), build full URL
                         $imageUrl = url('storage/' . $item->image_url);
                     }
                 }
-
-                // ✅ LOG UNTUK DEBUG
-                Log::info('Formatting media item', [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'image_url_db' => $item->image_url,
-                    'imageUrl_response' => $imageUrl,
-                    'video_url' => $item->video_url,
-                ]);
 
                 return [
                     'id' => $item->id,
                     'timeStamp' => $item->created_at->format('Y-m-d'),
                     'date' => $item->created_at->format('d/m/Y'),
-                    'imageUrl' => $imageUrl, // ✅ camelCase
-                    'videoUrl' => $item->video_url, // ✅ camelCase
+                    'imageUrl' => $imageUrl,
+                    'videoUrl' => $item->video_url,
                     'name' => $item->name,
                     'category' => $item->category,
                 ];
             });
 
-            Log::info('Sending media response', ['count' => $formattedMedia->count()]);
+            Log::info('Gallery items fetched', [
+                'count' => $formattedMedia->count(),
+                'excluded_category' => 'foto-cards'
+            ]);
 
             return response()->json($formattedMedia);
         } catch (\Exception $e) {
@@ -74,15 +69,20 @@ class MediaController extends Controller
 
     /**
      * Get statistics for filter buttons
+     * ✅ Exclude foto-cards from stats
      */
     public function statistics()
     {
         try {
-            $all = Media::count();
-            $last7Days = Media::where('created_at', '>=', Carbon::now()->subDays(7))->count();
-            $last14Days = Media::where('created_at', '>=', Carbon::now()->subDays(14))->count();
-            $last30Days = Media::where('created_at', '>=', Carbon::now()->subDays(30))->count();
-            $last90Days = Media::where('created_at', '>=', Carbon::now()->subDays(90))->count();
+            $all = Media::where('category', '!=', 'foto-cards')->count();
+            $last7Days = Media::where('category', '!=', 'foto-cards')
+                ->where('created_at', '>=', Carbon::now()->subDays(7))->count();
+            $last14Days = Media::where('category', '!=', 'foto-cards')
+                ->where('created_at', '>=', Carbon::now()->subDays(14))->count();
+            $last30Days = Media::where('category', '!=', 'foto-cards')
+                ->where('created_at', '>=', Carbon::now()->subDays(30))->count();
+            $last90Days = Media::where('category', '!=', 'foto-cards')
+                ->where('created_at', '>=', Carbon::now()->subDays(90))->count();
 
             return response()->json([
                 'all' => $all,
@@ -102,29 +102,25 @@ class MediaController extends Controller
     }
 
     /**
-     * Convert image to WebP using native PHP GD
+     * Convert image to WebP
      */
     private function convertToWebP($file, $destinationPath)
     {
         try {
-            // Check if GD extension is loaded
             if (!extension_loaded('gd')) {
                 Log::warning('GD extension not available, storing original file');
                 return $file->store($destinationPath, 'public');
             }
 
-            // Generate filename
             $filename = time() . '_' . uniqid() . '.webp';
             $storagePath = storage_path('app/public/' . $destinationPath);
             
-            // Create directory if not exists
             if (!file_exists($storagePath)) {
                 mkdir($storagePath, 0755, true);
             }
             
             $fullPath = $storagePath . '/' . $filename;
 
-            // Get image info
             $imageInfo = @getimagesize($file->path());
             if (!$imageInfo) {
                 Log::warning('Cannot read image info, storing original file');
@@ -133,7 +129,6 @@ class MediaController extends Controller
 
             $mimeType = $imageInfo['mime'];
 
-            // Create image resource
             $image = null;
             switch ($mimeType) {
                 case 'image/jpeg':
@@ -155,11 +150,9 @@ class MediaController extends Controller
                 return $file->store($destinationPath, 'public');
             }
 
-            // Get dimensions
             $width = imagesx($image);
             $height = imagesy($image);
 
-            // Resize if larger than 1920px
             $maxWidth = 1920;
             if ($width > $maxWidth) {
                 $ratio = $maxWidth / $width;
@@ -172,7 +165,6 @@ class MediaController extends Controller
                 $image = $resized;
             }
 
-            // Convert to WebP
             $success = imagewebp($image, $fullPath, 85);
             imagedestroy($image);
 
@@ -186,13 +178,13 @@ class MediaController extends Controller
 
         } catch (\Exception $e) {
             Log::error('WebP conversion error: ' . $e->getMessage());
-            Log::info('Falling back to original file storage');
             return $file->store($destinationPath, 'public');
         }
     }
 
     /**
      * Store new media
+     * ✅ Auto-route to correct folder based on category
      */
     public function store(Request $request)
     {
@@ -206,22 +198,24 @@ class MediaController extends Controller
 
             $path = null;
             $mediaName = $validated['name'] ?? null;
+            
+            // ✅ Route to correct folder based on category
+            $storagePath = $validated['category'] === 'foto-cards' 
+                ? 'foto-cards'  // ✅ Separate folder for foto_card
+                : 'media';      // ✅ Default gallery folder
 
             if ($request->hasFile('file')) {
-                $path = $this->convertToWebP($request->file('file'), 'media');
+                $path = $this->convertToWebP($request->file('file'), $storagePath);
                 
-                // ✅ Auto-generate name dari filename jika tidak ada
                 if (!$mediaName) {
                     $mediaName = pathinfo($request->file('file')->getClientOriginalName(), PATHINFO_FILENAME);
                 }
             } elseif ($validated['video_url']) {
-                // ✅ Auto-generate name untuk video jika tidak ada
                 if (!$mediaName) {
                     $mediaName = 'Video - ' . now()->format('d/m/Y H:i');
                 }
             }
 
-            // ✅ Fallback name
             if (!$mediaName) {
                 $mediaName = 'Media - ' . now()->format('d/m/Y H:i');
             }
@@ -233,7 +227,6 @@ class MediaController extends Controller
                 'video_url' => $validated['video_url'] ?? null,
             ]);
 
-            // ✅ Build response dengan URL lengkap
             $imageUrl = null;
             if ($media->image_url) {
                 $imageUrl = url('storage/' . $media->image_url);
@@ -241,14 +234,21 @@ class MediaController extends Controller
                 $imageUrl = $media->video_url;
             }
 
+            Log::info('Media stored', [
+                'id' => $media->id,
+                'category' => $media->category,
+                'storage_path' => $storagePath,
+                'folder' => $storagePath === 'foto-cards' ? 'foto-cards (excluded from gallery)' : 'media (visible in gallery)',
+            ]);
+
             return response()->json([
                 'message' => 'Media uploaded successfully',
                 'data' => [
                     'id' => $media->id,
                     'timeStamp' => $media->created_at->format('Y-m-d'),
                     'date' => $media->created_at->format('d/m/Y'),
-                    'imageUrl' => $imageUrl, // ✅ camelCase
-                    'videoUrl' => $media->video_url, // ✅ camelCase
+                    'imageUrl' => $imageUrl,
+                    'videoUrl' => $media->video_url,
                     'name' => $media->name,
                     'category' => $media->category,
                 ]
@@ -270,49 +270,21 @@ class MediaController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $validated = $request->validate([
-                'category' => 'nullable|string',
-                'name' => 'nullable|string',
-                'video_url' => 'nullable|string',
-                'file' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:10240',
-            ]);
-
             $media = Media::findOrFail($id);
 
-            if ($request->hasFile('file')) {
-                // Delete old file
-                if ($media->image_url && Storage::disk('public')->exists($media->image_url)) {
-                    Storage::disk('public')->delete($media->image_url);
-                }
+            $validated = $request->validate([
+                'name' => 'nullable|string',
+                'category' => 'nullable|string',
+                'video_url' => 'nullable|string',
+            ]);
 
-                $path = $this->convertToWebP($request->file('file'), 'media');
-                $media->image_url = $path;
-            }
+            $media->update($validated);
 
-            if (isset($validated['name'])) $media->name = $validated['name'];
-            if (isset($validated['category'])) $media->category = $validated['category'];
-            if (isset($validated['video_url'])) $media->video_url = $validated['video_url'];
-            
-            $media->save();
-
-            $imageUrl = null;
-            if ($media->image_url) {
-                $imageUrl = url('storage/' . $media->image_url);
-            } elseif ($media->video_url) {
-                $imageUrl = $media->video_url;
-            }
+            Log::info('Media updated', ['id' => $id]);
 
             return response()->json([
                 'message' => 'Media updated successfully',
-                'data' => [
-                    'id' => $media->id,
-                    'timeStamp' => $media->created_at->format('Y-m-d'),
-                    'date' => $media->created_at->format('d/m/Y'),
-                    'imageUrl' => $imageUrl, // ✅ camelCase
-                    'videoUrl' => $media->video_url, // ✅ camelCase
-                    'name' => $media->name,
-                    'category' => $media->category,
-                ]
+                'data' => $media
             ]);
         } catch (\Exception $e) {
             Log::error('Error in MediaController@update: ' . $e->getMessage());
@@ -332,13 +304,17 @@ class MediaController extends Controller
         try {
             $media = Media::findOrFail($id);
 
-            if ($media->image_url && Storage::disk('public')->exists($media->image_url)) {
+            if ($media->image_url) {
                 Storage::disk('public')->delete($media->image_url);
             }
 
             $media->delete();
 
-            return response()->json(['message' => 'Media deleted successfully']);
+            Log::info('Media deleted', ['id' => $id]);
+
+            return response()->json([
+                'message' => 'Media deleted successfully'
+            ]);
         } catch (\Exception $e) {
             Log::error('Error in MediaController@destroy: ' . $e->getMessage());
             

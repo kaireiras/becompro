@@ -14,12 +14,15 @@ use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\SystemInfoController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\PublicPromoController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/media', [MediaController::class, 'index']);
 Route::get('/media/statistics', [MediaController::class, 'statistics']);
+Route::get('/public/promos', [PublicPromoController::class, 'index']);
+Route::get('/system-info', [SystemInfoController::class, 'index']);
 
 require __DIR__. '/auth.php';
 
@@ -38,7 +41,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::apiResource('promos', PromoController::class);
 
-    Route::get('/system-info', [SystemInfoController::class, 'index']);
     Route::put('/system-info', [SystemInfoController::class, 'update']);
     
     Route::get('/social-media', [SystemInfoController::class, 'getSocialMedia']);

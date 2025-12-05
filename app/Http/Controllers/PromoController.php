@@ -21,6 +21,9 @@ class PromoController extends Controller
                     'startDateDisplay' => $promo->start_date->format('d/m/Y'), // Format display
                     'endDateDisplay' => $promo->end_date->format('d/m/Y'),
                     'status' => ucfirst($promo->status), // Available/Unavailable
+                    'tanggalDibuat'=>$promo->created_at->format('Y-m-d H:i:s'),
+                    'created_at' => $promo->created_at->format('Y-m-d H:i:s'),
+                    'updated_at' => $promo->updated_at->format('Y-m-d H:i:s'),
                 ];
             });
             return response()->json($formatted);
@@ -44,6 +47,8 @@ class PromoController extends Controller
             // Convert status ke lowercase jika ada
             if (isset($validated['status'])) {
                 $validated['status'] = strtolower($validated['status']);
+            }else {
+                $validated['status'] = 'available'; // Default
             }
 
             $promo = Promo::create($validated);
@@ -66,6 +71,9 @@ class PromoController extends Controller
             'startDateDisplay' => $promo->start_date->format('d/m/Y'),
             'endDateDisplay' => $promo->end_date->format('d/m/Y'),
             'status' => ucfirst($promo->status),
+            'tanggalDibuat'=>$promo->created_at,
+            'created_at' => $promo->created_at->format('Y-m-d H:i:s'),
+            'updated_at' => $promo->updated_at->format('Y-m-d H:i:s'),
         ]);
     }
 

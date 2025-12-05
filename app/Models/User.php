@@ -22,6 +22,10 @@ class User extends Authenticatable
         'google_id',
         'role',
     ];
+
+    public function jenisHewan(){
+        return $this->hasMany(JenisHewan::class, 'id_pasien');
+    }
     
 
     public function hewans()
