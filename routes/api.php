@@ -4,6 +4,7 @@ use App\Http\Controllers\API\PatientController;
 use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\UserProfileController;
 
+use App\Http\Controllers\WhatsappController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MediaController;
@@ -23,6 +24,12 @@ Route::get('/media', [MediaController::class, 'index']);
 Route::get('/media/statistics', [MediaController::class, 'statistics']);
 Route::get('/public/promos', [PublicPromoController::class, 'index']);
 Route::get('/system-info', [SystemInfoController::class, 'index']);
+Route::withoutMiddleware([
+    \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class
+])->group(function () {
+    Route::post('/whatsapp/send', [WhatsappController::class, 'send']);
+});
+
 
 require __DIR__. '/auth.php';
 
