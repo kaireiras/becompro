@@ -209,16 +209,18 @@ class ArticleController extends Controller
             'category' => 'required',
             'content' => 'required',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:10240',
-            'status' => 'required|in:Draft,Publish', //  Validate status
+            'status' => 'required|in:Draft,Publish',
         ]);
 
         if ($request->hasFile('image')) {
-            // convert to WebP and store
+            // Convert to WebP and store
             $imagePath = $this->convertToWebP($request->file('image'), 'articles');
             $data['image'] = $imagePath;
 
-            // add to Media Gallery
-            $this->addToMediaGallery($imagePath, $data['title']);
+            // HANYA tambahkan ke Media Gallery jika status Publish
+            if ($data['status'] === 'Publish') {
+                $this->addToMediaGallery($imagePath, $data['title']);
+            }
         }
 
         $article = Article::create($data);
@@ -226,7 +228,8 @@ class ArticleController extends Controller
         Log::info('Article created', [
             'id' => $article->id,
             'title' => $article->title,
-            'status' => $article->status
+            'status' => $article->status,
+            'added_to_gallery' => ($data['status'] === 'Publish' && isset($data['image']))
         ]);
         
         return response()->json($article);
@@ -234,26 +237,48 @@ class ArticleController extends Controller
 
     public function update(Request $request, Article $article)
     {
+        $oldStatus = $article->status; // Simpan status lama
+        
         $data = $request->validate([
             'title' => 'required',
             'category' => 'required',
             'content' => 'required',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:10240',
-            'status' => 'required|in:Draft,Publish', //  Validate status
+            'status' => 'required|in:Draft,Publish',
         ]);
 
         if ($request->hasFile('image')) {
-            // delete old image
+            // Delete old image
             if ($article->image && Storage::disk('public')->exists($article->image)) {
                 Storage::disk('public')->delete($article->image);
+                
+                // Hapus dari Media Gallery juga
+                Media::where('image_url', $article->image)->delete();
             }
 
-            // convert to WebP and store
+            // Convert to WebP and store
             $imagePath = $this->convertToWebP($request->file('image'), 'articles');
             $data['image'] = $imagePath;
 
-            // add to Media Gallery
-            $this->addToMediaGallery($imagePath, $data['title']);
+            // Tambahkan ke gallery HANYA jika Publish
+            if ($data['status'] === 'Publish') {
+                $this->addToMediaGallery($imagePath, $data['title']);
+            }
+        } else {
+            // Jika tidak upload gambar baru, tapi status berubah Draft ke Publish
+            if ($oldStatus === 'Draft' && $data['status'] === 'Publish' && $article->image) {
+                // Cek apakah sudah ada di gallery
+                $existingMedia = Media::where('image_url', $article->image)->first();
+                
+                if (!$existingMedia) {
+                    $this->addToMediaGallery($article->image, $data['title']);
+                }
+            }
+            
+            // Jika status berubah Publish → Draft, hapus dari gallery
+            if ($oldStatus === 'Publish' && $data['status'] === 'Draft' && $article->image) {
+                Media::where('image_url', $article->image)->delete();
+            }
         }
 
         $article->update($data);
@@ -261,7 +286,10 @@ class ArticleController extends Controller
         Log::info('Article updated', [
             'id' => $article->id,
             'title' => $article->title,
-            'status' => $article->status
+            'status' => $data['status'],
+            'status_changed' => $oldStatus !== $data['status'],
+            'old_status' => $oldStatus,
+            'new_status' => $data['status']
         ]);
         
         return response()->json($article);
