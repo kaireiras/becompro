@@ -118,9 +118,61 @@ class ArticleController extends Controller
         }
     }
 
-    public function index()
+    /**
+     * Display articles based on user authentication
+     * - Public: Only show published articles
+     * - Admin: Show all articles (Draft + Publish)
+     */
+    public function index(Request $request)
     {
+        //  Check if user is authenticated admin
+        $user = $request->user();
+        
+        //  If admin authenticated: show ALL, else: only Publish
+        if ($user && isset($user->role) && $user->role === 'admin') {
+            // Admin: Get ALL articles
+            $articles = Article::orderBy('created_at', 'desc')->get();
+        } else {
+            // Public: Only published articles
+            $articles = Article::where('status', 'Publish')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
 
+        $formattedArticles = $articles->map(function ($article) {
+            $imageUrl = null;
+        
+            if ($article->image) {
+                if (str_starts_with($article->image, 'http')) {
+                    $imageUrl = $article->image;
+                } else {
+                    $imageUrl = url('storage/' . $article->image);
+                }
+            }
+
+            return [
+                'id' => $article->id,
+                'title' => $article->title,
+                'content' => $article->content,
+                'category' => $article->category,
+                'status' => $article->status,
+                'imageUrl' => $imageUrl,
+                'image' => $article->image,
+                'created_at' => $article->created_at,
+                'updated_at' => $article->updated_at,
+            ];
+        });
+
+        return response()->json($formattedArticles);
+    }
+
+    /**
+     * Display ALL articles for admin dashboard
+     *  Show both Draft and Publish
+     */
+    public function indexAdmin()
+    {
+        //  Get ALL articles (no status filter)
         $articles = Article::orderBy('created_at', 'desc')->get();
 
         $formattedArticles = $articles->map(function ($article) {
@@ -139,8 +191,9 @@ class ArticleController extends Controller
                 'title' => $article->title,
                 'content' => $article->content,
                 'category' => $article->category,
-                'status' =>$article->status,
+                'status' => $article->status, //  Will be 'Draft' or 'Publish'
                 'imageUrl' => $imageUrl,
+                'image' => $article->image, //  Add raw image path
                 'created_at' => $article->created_at,
                 'updated_at' => $article->updated_at,
             ];
@@ -156,7 +209,7 @@ class ArticleController extends Controller
             'category' => 'required',
             'content' => 'required',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:10240',
-            'status' => 'required',
+            'status' => 'required|in:Draft,Publish', //  Validate status
         ]);
 
         if ($request->hasFile('image')) {
@@ -169,6 +222,13 @@ class ArticleController extends Controller
         }
 
         $article = Article::create($data);
+        
+        Log::info('Article created', [
+            'id' => $article->id,
+            'title' => $article->title,
+            'status' => $article->status
+        ]);
+        
         return response()->json($article);
     }
 
@@ -179,7 +239,7 @@ class ArticleController extends Controller
             'category' => 'required',
             'content' => 'required',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:10240',
-            'status' => 'required',
+            'status' => 'required|in:Draft,Publish', //  Validate status
         ]);
 
         if ($request->hasFile('image')) {
@@ -197,6 +257,13 @@ class ArticleController extends Controller
         }
 
         $article->update($data);
+        
+        Log::info('Article updated', [
+            'id' => $article->id,
+            'title' => $article->title,
+            'status' => $article->status
+        ]);
+        
         return response()->json($article);
     }
 
@@ -208,6 +275,9 @@ class ArticleController extends Controller
         }
 
         $article->delete();
+        
+        Log::info('Article deleted', ['id' => $article->id]);
+        
         return response()->json(['message' => 'deleted']);
     }
 }

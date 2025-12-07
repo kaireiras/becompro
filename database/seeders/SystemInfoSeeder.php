@@ -17,6 +17,14 @@ class SystemInfoSeeder extends Seeder
             'phone' => '08123456789',
             'email' => 'klinikfanina@gmail.com',
             'foto_card' => null,
+            'whatsapp_template' => 
+                    "Halo Klinik Dokter Fanina! 👋\n\n" .
+                    "Saya ingin membuat reservasi untuk pemeriksaan hewan peliharaan saya.\n\n" .
+                    "Mohon informasi lebih lanjut mengenai:\n" .
+                    "• Jadwal yang tersedia\n" .
+                    "• Jenis layanan yang ditawarkan\n" .
+                    "• Estimasi biaya pemeriksaan\n\n" .
+                    "Terima kasih! 🐾",
             'deskripsi_hero' => 'Buat pawrent, nggak ada yang lebih tenang selain tahu hewan kesayangannya sehat. Di Klinik Dokter Hewan Fanina, kami hadir untuk memberikan perawatan terbaik dengan penuh kasih sayang dan profesionalisme.',
             'judul_video_edukasi' => 'Serunya Belajar Bersama!',
             'deskripsi_video_edukasi' => 'Belajar tentang hewan jadi gampang! Tonton video edukasi kami yang informatif dan menarik.',

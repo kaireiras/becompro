@@ -10,12 +10,12 @@ class HewanController extends Controller
 {
     public function index()
     {
-        // ✅ Get all hewans with relationships
+        //  Get all hewans with relationships
         $hewans = Hewan::with(['pasien', 'jenisHewan'])->get();
         
         Log::info('📦 All Hewans:', ['count' => $hewans->count()]);
         
-        // ✅ Group by owner/pasien
+        //  Group by owner/pasien
         $grouped = $hewans->groupBy('id_pasien')->map(function ($hewans, $pasienId) {
             $firstHewan = $hewans->first();
             
@@ -27,14 +27,14 @@ class HewanController extends Controller
                     return [
                         'id' => $hewan->id_hewan,
                         'petName' => $hewan->nama_hewan,
-                        'speciesId' => $hewan->id_jenisHewan, // ✅ Important!
+                        'speciesId' => $hewan->id_jenisHewan, //  Important!
                         'speciesName' => $hewan->jenisHewan->nama_jenis ?? '',
                         'birthDate' => $hewan->tanggal_lahir_hewan,
                     ];
                 })->values(),
             ];
             
-            // ✅ Log each owner's data
+            //  Log each owner's data
             Log::info("👤 Owner {$pasienId} ({$ownerData['name']}):", [
                 'pets_count' => $ownerData['pets']->count(),
                 'species_ids' => $ownerData['pets']->pluck('speciesId')->unique()->values()
@@ -43,7 +43,7 @@ class HewanController extends Controller
             return $ownerData;
         })->values();
 
-        Log::info('✅ Grouped Data:', ['owners_count' => $grouped->count()]);
+        Log::info(' Grouped Data:', ['owners_count' => $grouped->count()]);
         
         return response()->json($grouped);
     }

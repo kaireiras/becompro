@@ -13,7 +13,7 @@ class PublicPromoController extends Controller
     public function index()
     {
         try {
-            // ✅ Get only available promos, sorted by latest
+            //  Get only available promos, sorted by latest
             $promos = Promo::where('status', 'available')
                 ->orderBy('created_at', 'desc')
                 ->take(3) // Limit to 3

@@ -11,9 +11,9 @@ class JenisHewanController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = JenisHewan::with('pasien'); // ✅ Load relationship
+            $query = JenisHewan::with('pasien'); //  Load relationship
             
-            // ✅ Filter by pasien if provided
+            //  Filter by pasien if provided
             if ($request->has('id_pasien')) {
                 $query->where('id_pasien', $request->id_pasien);
             }
@@ -37,7 +37,7 @@ class JenisHewanController extends Controller
         ]);
 
         try {
-            // ✅ Check: Apakah pasien ini sudah punya jenis hewan dengan nama yang sama?
+            //  Check: Apakah pasien ini sudah punya jenis hewan dengan nama yang sama?
             $exists = JenisHewan::where('id_pasien', $validated['id_pasien'])
                 ->where('nama_jenis', $validated['nama_jenis'])
                 ->exists();
@@ -50,7 +50,7 @@ class JenisHewanController extends Controller
 
             $jenisHewan = JenisHewan::create($validated);
 
-            Log::info('✅ Jenis Hewan created:', ['id' => $jenisHewan->id_jenisHewan]);
+            Log::info(' Jenis Hewan created:', ['id' => $jenisHewan->id_jenisHewan]);
 
             return response()->json([
                 'message' => 'Jenis hewan berhasil ditambahkan',
@@ -72,14 +72,14 @@ class JenisHewanController extends Controller
         try {
             $jenisHewan = JenisHewan::findOrFail($id);
             
-            // ✅ Security: Pastikan pasien hanya bisa edit jenis hewan miliknya
+            //  Security: Pastikan pasien hanya bisa edit jenis hewan miliknya
             if ($request->user()->role === 'patient' && $jenisHewan->id_pasien != $request->user()->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $jenisHewan->update($validated);
 
-            Log::info('✅ Jenis Hewan updated:', ['id' => $id]);
+            Log::info(' Jenis Hewan updated:', ['id' => $id]);
 
             return response()->json([
                 'message' => 'Jenis hewan berhasil diupdate',
@@ -97,7 +97,7 @@ class JenisHewanController extends Controller
         try {
             $jenisHewan = JenisHewan::findOrFail($id);
             
-            // ✅ Check: Apakah masih ada hewan yang menggunakan jenis ini?
+            //  Check: Apakah masih ada hewan yang menggunakan jenis ini?
             if ($jenisHewan->hewans()->count() > 0) {
                 return response()->json([
                     'message' => 'Tidak dapat menghapus jenis hewan yang masih memiliki data hewan'
@@ -106,7 +106,7 @@ class JenisHewanController extends Controller
 
             $jenisHewan->delete();
 
-            Log::info('✅ Jenis Hewan deleted:', ['id' => $id]);
+            Log::info(' Jenis Hewan deleted:', ['id' => $id]);
 
             return response()->json([
                 'message' => 'Jenis hewan berhasil dihapus'

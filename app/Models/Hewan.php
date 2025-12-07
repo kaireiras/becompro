@@ -24,7 +24,7 @@ class Hewan extends Model
         return null;
     }
 
-    // ✅ Method Carbon yang lebih simple
+    //  Method Carbon yang lebih simple
     return Carbon::parse($this->tanggal_lahir_hewan)
         ->locale('id') // Set bahasa Indonesia
         ->diffForHumans(null, true); // true = remove "yang lalu"

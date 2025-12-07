@@ -15,7 +15,7 @@ class SystemInfoController extends Controller
         $systemInfo = DB::table('system_infos')->first();
         $socialMediaRecords = DB::table('social_media')->get();
 
-        // ✅ Format social media untuk frontend
+        //  Format social media untuk frontend
         $socialMedia = $socialMediaRecords->map(function($item) {
             return [
                 'id'=>$item->id,
@@ -27,7 +27,7 @@ class SystemInfoController extends Controller
             ];
         })->toArray();
 
-        // ✅ Format phone untuk display (+62-XXX-XXXX-XXXX)
+        //  Format phone untuk display (+62-XXX-XXXX-XXXX)
         $phone = $systemInfo->phone ?? '+6212345678999';
         $phoneDisplay = $this->formatPhoneDisplay($phone);
 
@@ -36,6 +36,7 @@ class SystemInfoController extends Controller
                 'clinic_name' => $systemInfo->clinic_name,
                 'address' => $systemInfo->address,
                 'phone' => $phone,
+                'whatsapp_template'=> $systemInfo->whatsapp_template,
                 'phoneDisplay' => $phoneDisplay,
                 'email' => $systemInfo->email,
                 'operating_hours' => $systemInfo->operating_hours,
@@ -54,6 +55,7 @@ class SystemInfoController extends Controller
                 'address' => '',
                 'phone' => '+6212345678999',
                 'phoneDisplay' => '+62-123-4567-8999',
+                'whatsapp_template'=> '',
                 'email' => '',
                 'operating_hours' => '',
                 'foto_card' => null,
@@ -98,6 +100,7 @@ class SystemInfoController extends Controller
             'clinic_name' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
+            'whatsapp_template'=>'nullable|string|max:500',
             'email' => 'nullable|email|max:255',
             'foto_card' => 'nullable|string',
             'deskripsi_hero' => 'nullable|string',
@@ -143,7 +146,7 @@ class SystemInfoController extends Controller
         ]);
 
         $id = DB::table('social_media')->insertGetId([
-            'platform' => strtolower($validated['platform']), // ✅ Store lowercase
+            'platform' => strtolower($validated['platform']), //  Store lowercase
             'url' => $validated['url'],
             'created_at' => now(),
             'updated_at' => now(),

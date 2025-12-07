@@ -12,13 +12,13 @@ class MediaController extends Controller
 {
     /**
      * Get all media with optional filter by days
-     * ✅ Exclude category 'foto-cards' from gallery
+     *  Exclude category 'foto-cards' from gallery
      */
     public function index(Request $request)
     {
         try {
             $query = Media::query()
-                ->where('category', '!=', 'foto-cards') // ✅ Exclude foto-cards
+                ->where('category', '!=', 'foto-cards') //  Exclude foto-cards
                 ->orderBy('created_at', 'desc');
 
             if ($request->has('days') && $request->days !== 'all') {
@@ -69,7 +69,7 @@ class MediaController extends Controller
 
     /**
      * Get statistics for filter buttons
-     * ✅ Exclude foto-cards from stats
+     *  Exclude foto-cards from stats
      */
     public function statistics()
     {
@@ -184,7 +184,7 @@ class MediaController extends Controller
 
     /**
      * Store new media
-     * ✅ Auto-route to correct folder based on category
+     *  Auto-route to correct folder based on category
      */
     public function store(Request $request)
     {
@@ -199,10 +199,10 @@ class MediaController extends Controller
             $path = null;
             $mediaName = $validated['name'] ?? null;
             
-            // ✅ Route to correct folder based on category
+            //  Route to correct folder based on category
             $storagePath = $validated['category'] === 'foto-cards' 
-                ? 'foto-cards'  // ✅ Separate folder for foto_card
-                : 'media';      // ✅ Default gallery folder
+                ? 'foto-cards'  //  Separate folder for foto_card
+                : 'media';      //  Default gallery folder
 
             if ($request->hasFile('file')) {
                 $path = $this->convertToWebP($request->file('file'), $storagePath);

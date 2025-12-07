@@ -30,7 +30,7 @@ class AuthenticatedSessionController extends Controller
                 'role' => $user->role,
                 'phoneNumber' => $user->phone_number,
             ],
-            // ✅ Tambahkan redirect URL untuk frontend
+            //  Tambahkan redirect URL untuk frontend
             'redirect' => $user->role === 'admin' ? '/dashboardAdmin' : '/',
         ], 200);
     }

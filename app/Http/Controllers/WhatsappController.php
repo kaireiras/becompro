@@ -10,14 +10,14 @@ class WhatsappController extends Controller
 {
     public function send(Request $request, WAService $wa)
     {
-        // ✅ Log raw request
+        //  Log raw request
         Log::info('📥 Incoming WA Request:', [
             'all' => $request->all(),
             'json' => $request->json()->all(),
             'body' => $request->getContent(),
         ]);
 
-        // ✅ Validate request
+        //  Validate request
         $validated = $request->validate([
             'number' => 'required|string',
             'text' => 'required|string',
@@ -32,7 +32,7 @@ class WhatsappController extends Controller
                 $validated['text']
             );
 
-            Log::info('✅ WA API Response:', $response);
+            Log::info(' WA API Response:', $response);
 
             return response()->json([
                 'success' => true,
