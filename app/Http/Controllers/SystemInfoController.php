@@ -97,8 +97,19 @@ class SystemInfoController extends Controller
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'clinic_name' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
+            'clinic_name' => ['nullable', 'string', 'max:150', function ($attribute, $value, $fail){
+                $wordCount = str_word_count($value);
+                if ($wordCount > 15){
+                    $fail('Nama klinik maksimal 15 kata (saat ini: ' . $wordCount . ' kata)');
+                }
+            },
+            ],
+            'address' => ['nullable','string','max:255', function ($attribute, $value, $fail) {
+                $wordCount = str_word_count($value);
+                if($wordCount > 50){
+                    $fail('Alamat maksimal 50 kata (saat ini: ' . $wordCount . ' kata)');
+                }
+            }],
             'phone' => 'nullable|string|max:20',
             'whatsapp_template'=>'nullable|string|max:500',
             'email' => 'nullable|email|max:255',

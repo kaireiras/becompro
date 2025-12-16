@@ -67,6 +67,7 @@ class JenisHewanController extends Controller
     {
         $validated = $request->validate([
             'nama_jenis' => 'required|string|max:255',
+            'id_pasien' => 'required|exists:users,id',
         ]);
 
         try {
