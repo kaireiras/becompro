@@ -13,6 +13,7 @@ class MediaController extends Controller
     /**
      * Get all media with optional filter by days
      *  Exclude category 'foto-cards' from gallery
+     *  Exclude 'Video' if exclude_video=true
      */
     public function index(Request $request)
     {
@@ -20,6 +21,11 @@ class MediaController extends Controller
             $query = Media::query()
                 ->where('category', '!=', 'foto-cards') //  Exclude foto-cards
                 ->orderBy('created_at', 'desc');
+
+            // tambahkan parameter untuk exclude video
+            if ($request->has('exclude_video') && $request->exclude_video === 'true') {
+                $query->where('category', '!=', 'Video');
+            }
 
             if ($request->has('days') && $request->days !== 'all') {
                 $days = (int) $request->days;
@@ -53,7 +59,9 @@ class MediaController extends Controller
 
             Log::info('Gallery items fetched', [
                 'count' => $formattedMedia->count(),
-                'excluded_category' => 'foto-cards'
+                'excluded_categories' => $request->has('exclude_video') && $request->exclude_video === 'true' 
+                    ? ['foto-cards', 'Video'] 
+                    : ['foto-cards']
             ]);
 
             return response()->json($formattedMedia);
@@ -70,19 +78,35 @@ class MediaController extends Controller
     /**
      * Get statistics for filter buttons
      *  Exclude foto-cards from stats
+     *  Exclude Video if exclude_video=true
      */
-    public function statistics()
+    public function statistics(Request $request)
     {
         try {
-            $all = Media::where('category', '!=', 'foto-cards')->count();
-            $last7Days = Media::where('category', '!=', 'foto-cards')
-                ->where('created_at', '>=', Carbon::now()->subDays(7))->count();
-            $last14Days = Media::where('category', '!=', 'foto-cards')
-                ->where('created_at', '>=', Carbon::now()->subDays(14))->count();
-            $last30Days = Media::where('category', '!=', 'foto-cards')
-                ->where('created_at', '>=', Carbon::now()->subDays(30))->count();
-            $last90Days = Media::where('category', '!=', 'foto-cards')
-                ->where('created_at', '>=', Carbon::now()->subDays(90))->count();
+            $query = Media::query()->where('category', '!=', 'foto-cards');
+            
+            // exclude video jika parameter exclude_video=true
+            if ($request->has('exclude_video') && $request->exclude_video === 'true') {
+                $query->where('category', '!=', 'Video');
+            }
+
+            $all = (clone $query)->count();
+            
+            $last7Days = (clone $query)
+                ->where('created_at', '>=', Carbon::now()->subDays(7))
+                ->count();
+                
+            $last14Days = (clone $query)
+                ->where('created_at', '>=', Carbon::now()->subDays(14))
+                ->count();
+                
+            $last30Days = (clone $query)
+                ->where('created_at', '>=', Carbon::now()->subDays(30))
+                ->count();
+                
+            $last90Days = (clone $query)
+                ->where('created_at', '>=', Carbon::now()->subDays(90))
+                ->count();
 
             return response()->json([
                 'all' => $all,

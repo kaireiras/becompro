@@ -21,7 +21,7 @@ class SendMailController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => '✅ Email berhasil dikirim!'
+                'message' => 'Email berhasil dikirim!'
             ]);
 
         } catch (\Exception $e) {

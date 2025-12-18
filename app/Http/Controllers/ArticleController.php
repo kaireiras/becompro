@@ -101,24 +101,6 @@ class ArticleController extends Controller
     }
 
     /**
-     * Add image to Media Gallery
-     */
-    private function addToMediaGallery($imagePath, $title)
-    {
-        try {
-            Media::create([
-                'name' => 'Article: ' . $title,
-                'category' => 'Foto',
-                'image_url' => $imagePath,
-                'video_url' => null,
-            ]);
-            Log::info('Image added to media gallery: ' . $imagePath);
-        } catch (\Exception $e) {
-            Log::error('Failed to add image to media gallery: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * Display articles based on user authentication
      * - Public: Only show published articles
      * - Admin: Show all articles (Draft + Publish)
@@ -193,7 +175,7 @@ class ArticleController extends Controller
                 'category' => $article->category,
                 'status' => $article->status, //  Will be 'Draft' or 'Publish'
                 'imageUrl' => $imageUrl,
-                'image' => $article->image, //  Add raw image path
+                'image' => $article->image,
                 'created_at' => $article->created_at,
                 'updated_at' => $article->updated_at,
             ];
@@ -204,108 +186,139 @@ class ArticleController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'title' => 'required',
-            'category' => 'required',
-            'content' => 'required',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:10240',
-            'status' => 'required|in:Draft,Publish',
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'category' => 'nullable|string|max:100',
+            'status' => 'nullable|string|in:Draft,Publish',
+            'author' => 'nullable|string|max:100',
+            'publish_date' => 'nullable|date',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
         ]);
 
-        if ($request->hasFile('image')) {
-            // Convert to WebP and store
-            $imagePath = $this->convertToWebP($request->file('image'), 'articles');
-            $data['image'] = $imagePath;
+        try {
+            $imagePath = null;
 
-            // HANYA tambahkan ke Media Gallery jika status Publish
-            if ($data['status'] === 'Publish') {
-                $this->addToMediaGallery($imagePath, $data['title']);
-            }
-        }
-
-        $article = Article::create($data);
-        
-        Log::info('Article created', [
-            'id' => $article->id,
-            'title' => $article->title,
-            'status' => $article->status,
-            'added_to_gallery' => ($data['status'] === 'Publish' && isset($data['image']))
-        ]);
-        
-        return response()->json($article);
-    }
-
-    public function update(Request $request, Article $article)
-    {
-        $oldStatus = $article->status; // Simpan status lama
-        
-        $data = $request->validate([
-            'title' => 'required',
-            'category' => 'required',
-            'content' => 'required',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:10240',
-            'status' => 'required|in:Draft,Publish',
-        ]);
-
-        if ($request->hasFile('image')) {
-            // Delete old image
-            if ($article->image && Storage::disk('public')->exists($article->image)) {
-                Storage::disk('public')->delete($article->image);
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
                 
-                // Hapus dari Media Gallery juga
-                Media::where('image_url', $article->image)->delete();
-            }
-
-            // Convert to WebP and store
-            $imagePath = $this->convertToWebP($request->file('image'), 'articles');
-            $data['image'] = $imagePath;
-
-            // Tambahkan ke gallery HANYA jika Publish
-            if ($data['status'] === 'Publish') {
-                $this->addToMediaGallery($imagePath, $data['title']);
-            }
-        } else {
-            // Jika tidak upload gambar baru, tapi status berubah Draft ke Publish
-            if ($oldStatus === 'Draft' && $data['status'] === 'Publish' && $article->image) {
-                // Cek apakah sudah ada di gallery
-                $existingMedia = Media::where('image_url', $article->image)->first();
+                $imagePath = $this->convertToWebP($file, 'articles');
                 
-                if (!$existingMedia) {
-                    $this->addToMediaGallery($article->image, $data['title']);
-                }
+                Log::info('Article image stored directly', [
+                    'path' => $imagePath,
+                    'folder' => 'articles',
+                    'note' => 'Not saved to media table'
+                ]);
             }
+
+            $article = Article::create([
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+                'category' => $validated['category'] ?? 'General',
+                'status' => $validated['status'] ?? 'Draft',
+                'author' => $validated['author'] ?? 'Admin',
+                'publish_date' => $validated['publish_date'] ?? now(),
+                'image_url' => $imagePath,
+                'image' => $imagePath,
+            ]);
+
+            return response()->json([
+                'message' => 'Article created successfully',
+                'article' => $article
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Error creating article: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
-            // Jika status berubah Publish → Draft, hapus dari gallery
-            if ($oldStatus === 'Publish' && $data['status'] === 'Draft' && $article->image) {
-                Media::where('image_url', $article->image)->delete();
-            }
+            return response()->json([
+                'message' => 'Failed to create article',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $article->update($data);
-        
-        Log::info('Article updated', [
-            'id' => $article->id,
-            'title' => $article->title,
-            'status' => $data['status'],
-            'status_changed' => $oldStatus !== $data['status'],
-            'old_status' => $oldStatus,
-            'new_status' => $data['status']
-        ]);
-        
-        return response()->json($article);
     }
 
-    public function destroy(Article $article)
+    public function update(Request $request, $id)
     {
-        // Delete image from storage
-        if ($article->image && Storage::disk('public')->exists($article->image)) {
-            Storage::disk('public')->delete($article->image);
-        }
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'category' => 'nullable|string|max:100',
+            'status' => 'nullable|string|in:Draft,Publish',
+            'author' => 'nullable|string|max:100',
+            'publish_date' => 'nullable|date',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+        ]);
 
-        $article->delete();
-        
-        Log::info('Article deleted', ['id' => $article->id]);
-        
-        return response()->json(['message' => 'deleted']);
+        try {
+            $article = Article::findOrFail($id);
+
+            // Upload gambar baru jika ada
+            if ($request->hasFile('image')) {
+                // Hapus gambar lama
+                if ($article->image_url && Storage::disk('public')->exists($article->image_url)) {
+                    Storage::disk('public')->delete($article->image_url);
+                    Log::info('Old article image deleted', ['path' => $article->image_url]);
+                }
+
+                // Jika ada kolom 'image' terpisah, hapus juga
+                if ($article->image && $article->image !== $article->image_url && Storage::disk('public')->exists($article->image)) {
+                    Storage::disk('public')->delete($article->image);
+                }
+
+                // Upload gambar baru
+                $imagePath = $this->convertToWebP($request->file('image'), 'articles');
+                $validated['image_url'] = $imagePath;
+                $validated['image'] = $imagePath;
+            }
+
+            $article->update([
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+                'category' => $validated['category'] ?? $article->category,
+                'status' => $validated['status'] ?? $article->status,
+                'author' => $validated['author'] ?? $article->author,
+                'publish_date' => $validated['publish_date'] ?? $article->publish_date,
+                'image_url' => $validated['image_url'] ?? $article->image_url,
+                'image' => $validated['image'] ?? $article->image,
+            ]);
+
+            return response()->json([
+                'message' => 'Article updated successfully',
+                'article' => $article
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating article: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update article',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $article = Article::findOrFail($id);
+
+            if ($article->image_url && Storage::disk('public')->exists($article->image_url)) {
+                Storage::disk('public')->delete($article->image_url);
+                Log::info('Article image deleted from storage', ['path' => $article->image_url]);
+            }
+
+            $article->delete();
+
+            return response()->json([
+                'message' => 'Article deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error deleting article: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete article',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

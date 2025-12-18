@@ -87,6 +87,12 @@ class SystemInfoController extends Controller
         if (preg_match('/^\+62(\d{3})(\d{4})(\d+)$/', $cleaned, $matches)) {
             return "+62-{$matches[1]}-{$matches[2]}-{$matches[3]}";
         }
+
+        if(preg_match('/[a-zA-Z]/', $phone)){
+            \Log::warning('phone terdapat kalimat/kata. ubah ke nomor telepon asli');
+            return 'invalid phone number';
+
+        }
         
         return $phone; // Return original if format doesn't match
     }
@@ -110,7 +116,27 @@ class SystemInfoController extends Controller
                     $fail('Alamat maksimal 50 kata (saat ini: ' . $wordCount . ' kata)');
                 }
             }],
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable','string','max:20', function ($attribute, $value, $fail){
+                if (!$value) return; // Skip jika null/empty
+                
+                // Cek apakah ada huruf
+                if (preg_match('/[a-zA-Z]/', $value)) {
+                    $fail('Nomor telepon tidak boleh mengandung huruf');
+                    return;
+                }
+                
+                // Cek format harus diawali +62
+                if (!preg_match('/^\+62/', $value)) {
+                    $fail('Nomor telepon harus diawali dengan +62');
+                    return;
+                }
+                
+                // Cek minimal panjang (setelah +62 harus ada 9-13 digit)
+                $digits = preg_replace('/[^0-9]/', '', substr($value, 3)); // Ambil digit setelah +62
+                if (strlen($digits) < 9 || strlen($digits) > 13) {
+                    $fail('Nomor telepon harus terdiri dari 9-13 digit setelah +62');
+                }
+            }],
             'whatsapp_template'=>'nullable|string|max:500',
             'email' => 'nullable|email|max:255',
             'foto_card' => 'nullable|string',

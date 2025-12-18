@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\JenisHewan;
 use Illuminate\Http\Request;
+use App\Models\Hewan;
+use App\Models\Reservation;
 use Illuminate\Support\Facades\Log;
 
 class JenisHewanController extends Controller
@@ -79,6 +81,14 @@ class JenisHewanController extends Controller
             }
 
             $jenisHewan->update($validated);
+
+            $affectedHewanIds = Hewan::where('id_jenisHewan', $id)->pluck('id_hewan')->toArray();
+
+            Hewan::where('id_jenisHewan', $id)->update(['id_pasien' => $validated['id_pasien']]);
+
+            if (!empty($affectedHewanIds)) {
+                Reservation::whereIn('id_hewan', $affectedHewanIds)->update(['id_pasien' => $validated['id_pasien']]);
+            }
 
             Log::info(' Jenis Hewan updated:', ['id' => $id]);
 
