@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class ReminderLog extends Model
 {
+
+    protected $table='reminder_log';
+
     protected $fillable =[
         'id_vaksinasi',
         'reminder_type',

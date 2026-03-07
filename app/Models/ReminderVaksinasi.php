@@ -8,6 +8,8 @@ class ReminderVaksinasi extends Model
 {
 
     protected $table = 'reminder_vaksinasi';
+
+    protected $primaryKey = 'id_vaksinasi';
     protected $fillable = [
         'id_pasien',
         'id_hewan',
@@ -26,5 +28,10 @@ class ReminderVaksinasi extends Model
 
     public function hewan(){
         return $this->belongsTo(Hewan::class, 'id_hewan', 'id_hewan');
+    }
+
+    public function reminderLogs()
+    {
+        return $this->hasMany(ReminderLog::class, 'id_vaksinasi');
     }
 }

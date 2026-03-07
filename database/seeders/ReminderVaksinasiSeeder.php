@@ -17,9 +17,6 @@ class ReminderVaksinasiSeeder extends Seeder
     {
         $this->command->info('🔄 Starting seeder...');
 
-        // ========================================
-        // STEP 1: Buat User (Patient)
-        // ========================================
         $this->command->info('👤 Creating patient user...');
         
         $patient = User::firstOrCreate(
@@ -28,29 +25,23 @@ class ReminderVaksinasiSeeder extends Seeder
                 'username' => 'john_doe',
                 'phone_number' => '081234567890',
                 'password' => Hash::make('password123'),
-                'role' => 'user', // ✅ Role patient, bukan 'user'
+                'role' => 'user',
             ]
         );
 
         $this->command->info("✅ Patient created: ID={$patient->id}, Email={$patient->email}");
 
-        // ========================================
-        // STEP 2: Buat Jenis Hewan (milik patient)
-        // ========================================
         $this->command->info('🐕 Creating jenis hewan...');
         
         $jenisHewan = JenisHewan::firstOrCreate(
             [
                 'nama_jenis' => 'Anjing',
-                'id_pasien' => $patient->id, // ✅ Jenis hewan milik patient ini
+                'id_pasien' => $patient->id,
             ]
         );
 
         $this->command->info("✅ Jenis Hewan created: ID={$jenisHewan->id_jenisHewan}, Nama={$jenisHewan->nama_jenis}");
 
-        // ========================================
-        // STEP 3: Tambah Hewan
-        // ========================================
         $this->command->info('🐾 Creating hewan...');
         
         $hewan = Hewan::firstOrCreate(
@@ -66,9 +57,6 @@ class ReminderVaksinasiSeeder extends Seeder
 
         $this->command->info("✅ Hewan created: ID={$hewan->id_hewan}, Nama={$hewan->nama_hewan}");
 
-        // ========================================
-        // STEP 4: Buat Reminder Vaksinasi
-        // ========================================
         $this->command->info('💉 Creating vaccination reminders...');
         
         $vaccinations = [
@@ -99,9 +87,7 @@ class ReminderVaksinasiSeeder extends Seeder
             $this->command->info("  ✓ {$reminder->jenis_vaksin} - {$reminder->tanggal_vaksin->format('Y-m-d')}");
         }
 
-        // ========================================
-        // SUMMARY
-        // ========================================
+
         $this->command->newLine();
         $this->command->info('═══════════════════════════════════════');
         $this->command->info('✅ Seeder Completed Successfully!');

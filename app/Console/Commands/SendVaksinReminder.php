@@ -14,14 +14,14 @@ class SendVaksinReminder extends Command
      *
      * @var string
      */
-    protected $signature = 'app:send-vaksin-reminder';
+    protected $signature = 'reminder:vaksin';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Send vaccination reminders via WhatsApp';
 
     /**
      * Execute the console command.
@@ -33,39 +33,51 @@ class SendVaksinReminder extends Command
         try {
             // ✅ Call controller method
             $controller = app(ReminderVaksinasiController::class);
-            $result = $controller->sendScheduledVaksinasi();
+            $response = $controller->sendScheduledVaksinasi();
             
-            // ✅ Get response data
-            $data = $result->getData();
+            // ✅ Get data dari JsonResponse
+            $data = json_decode($response->getContent());
             
-            $this->info("✅ Reminders sent successfully!");
-            $this->info("📊 Total reminders sent: {$data->sent_count}");
-            
-            // ✅ Show details if any
-            if (!empty($data->details)) {
-                $this->table(
-                    ['Vaksinasi ID', 'Jenis Vaksin', 'Type', 'Sent To'],
-                    collect($data->details)->map(fn($item) => [
-                        $item['vaksinasi_id'],
-                        $item['jenis_vaksin'],
-                        $item['type'],
-                        $item['sent_to']
-                    ])
-                );
+            // ✅ Check if successful
+            if ($response->status() === 200) {
+                $this->info('✅ Reminders sent successfully!');
+                $this->info('📊 Total reminders sent: ' . $data->sent_count);
+
+                // ✅ Display table if there are reminders
+                if (!empty($data->details) && count($data->details) > 0) {
+                    $headers = ['Vaksinasi ID', 'Jenis Vaksin', 'Type', 'Sent To'];
+                    $rows = [];
+
+                    foreach ($data->details as $detail) {
+                        $rows[] = [
+                            $detail->id_vaksinasi ?? $detail->vaksinasi_id,
+                            $detail->jenis_vaksin,
+                            $detail->type,
+                            $detail->sent_to
+                        ];
+                    }
+
+                    $this->table($headers, $rows);
+                } else {
+                    $this->warn('⚠️  No reminders to send today.');
+                }
+
+                Log::info('✅ Vaccination reminders sent via command', [
+                    'count' => $data->sent_count
+                ]);
+
+                return Command::SUCCESS;
+                
             } else {
-                $this->warn('⚠️ No reminders to send today.');
+                $this->error('❌ Failed to send reminders: ' . ($data->message ?? 'Unknown error'));
+                return Command::FAILURE;
             }
-            
-            Log::info('✅ Vaccination reminders sent via command', [
-                'count' => $data->sent_count
-            ]);
-            
-            return Command::SUCCESS;
-            
+
         } catch (\Exception $e) {
-            $this->error('❌ Error sending reminders: ' . $e->getMessage());
-            Log::error('Error in reminder:vaksin command: ' . $e->getMessage());
-            
+            $this->error('❌ Error: ' . $e->getMessage());
+            Log::error('Command error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return Command::FAILURE;
         }
     

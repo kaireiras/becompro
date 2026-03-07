@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ReminderLog;
 use Carbon\Carbon;
-use Http;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use App\Models\ReminderVaksinasi;
 use Illuminate\Support\Facades\Log;
@@ -36,20 +36,20 @@ class ReminderVaksinasiController extends Controller
                 if($daysUntil==3){
                     $reminderType = '3_days_sebelum';
                 } elseif ($daysUntil==1){
-                    $reminderType = '1_days_sebelum';
+                    $reminderType = '1_day_before';
                 } elseif ($daysUntil==0){
                     $reminderType = 'same_day';
                 }
                 if(!$reminderType)continue;
 
-                $alreadySent = ReminderLog::where('id_vaksinasi', $vaksinasi->id)
+                $alreadySent = ReminderLog::where('id_vaksinasi', $vaksinasi->id_vaksinasi)
                     ->where('reminder_type', $reminderType)
                     ->where('status', 'sent')
                     ->exists();
                 
                 if($alreadySent){
                     Log::info('reminder already sent', [
-                        'id_vaksinasi'=> $vaksinasi->id,
+                        'id_vaksinasi'=> $vaksinasi->id_vaksinasi,
                         'type'=> $reminderType
                     ]);
                     continue;
@@ -59,7 +59,7 @@ class ReminderVaksinasiController extends Controller
 
                 if($sent){
                     ReminderLog::create([
-                        'id_vaksinasi'=>$vaksinasi->id,
+                        'id_vaksinasi'=>$vaksinasi->id_vaksinasi,
                         'reminder_type'=>$reminderType,
                         'sent_at'=> now(),
                         'status'=>'sent',
@@ -67,7 +67,7 @@ class ReminderVaksinasiController extends Controller
                     ]);
 
                     $reminders[] = [
-                        'id_vaksinasi' => $vaksinasi->id,
+                        'id_vaksinasi' => $vaksinasi->id_vaksinasi,
                         'jenis_vaksin' => $vaksinasi->jenis_vaksin,
                         'type' => $reminderType,
                         'sent_to' => $vaksinasi->hewan->pasien->phone_number ?? 'N/A',
@@ -98,7 +98,7 @@ class ReminderVaksinasiController extends Controller
 
             if(!$pasien || !$pasien->phone_number){
                 Log::warning('no phone number found', [
-                    'id_vaksinasi'=> $vaksinasi->id,
+                    'id_vaksinasi'=> $vaksinasi->id_vaksinasi,
                     'hewan_id'=> $vaksinasi->id_hewan
                 ]);
                 return false;
@@ -106,7 +106,7 @@ class ReminderVaksinasiController extends Controller
             $phoneNumber = $this->formatPhoneNumber($pasien->phone_number);
             if(!$phoneNumber){
                 Log::warning('invalid phone number', [
-                    'id_vaksinasi'=>$vaksinasi->id,
+                    'id_vaksinasi'=>$vaksinasi->id_vaksinasi,
                     'phone'=>$pasien->phone_number
                 ]);
                 return false;
@@ -124,7 +124,7 @@ class ReminderVaksinasiController extends Controller
 
             if($response->successful()){
                 Log::info('whatsapp sent', [
-                    'id_vaksinasi'=> $vaksinasi->id,
+                    'id_vaksinasi'=> $vaksinasi->id_vaksinasi,
                     'number'=> $phoneNumber,
                     'text'=> $reminderType
                 ]);
@@ -158,7 +158,7 @@ class ReminderVaksinasiController extends Controller
                 "💉 Jenis Vaksin: {$jenisVaksin}\n\n" .
                 "Jangan lupa untuk datang ya! Kesehatan hewan peliharaan Anda adalah prioritas kami. 🏥❤️",
 
-            '1_day_sebelum' => "💉 *Reminder Vaksinasi*\n\n" .
+            '1_day_before' => "💉 *Reminder Vaksinasi*\n\n" .
                 "Halo {$ownerName}! 👋\n\n" .
                 "Ini adalah pengingat bahwa {$petName} memiliki jadwal vaksinasi *{$jenisVaksin}* *besok*.\n\n" .
                 "📅 Tanggal: {$date}\n" .
@@ -201,8 +201,8 @@ class ReminderVaksinasiController extends Controller
     public function sendManualReminder(Request $request)
     {
         $validated = $request->validate([
-            'id_vaksinasi' => 'required|exists:reminder_vaksinasi,id',
-            'reminder_type' => 'required|in:3_days_before,1_day_before,same_day',
+            'id_vaksinasi' => 'required|exists:reminder_vaksinasi,id_vaksinasi',
+            'reminder_type' => 'required|in:3_days_sebelum,1_day_before,same_day',
         ]);
 
         try {
@@ -213,7 +213,7 @@ class ReminderVaksinasiController extends Controller
 
             if ($sent) {
                 ReminderLog::create([
-                    'id_vaksinasi' => $vaksinasi->id,
+                    'id_vaksinasi' => $vaksinasi->id_vaksinasi,
                     'reminder_type' => $validated['reminder_type'],
                     'sent_at' => now(),
                     'status' => 'sent',
@@ -223,7 +223,7 @@ class ReminderVaksinasiController extends Controller
 
                 return response()->json([
                     'message' => 'Reminder sent successfully',
-                    'id_vaksinasi' => $vaksinasi->id
+                    'id_vaksinasi' => $vaksinasi->id_vaksinasi
                 ]);
             } else {
                 return response()->json([
@@ -312,6 +312,7 @@ class ReminderVaksinasiController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'id_pasien'=> 'required|exists:users,id',
             'id_hewan' => 'required|exists:hewan,id_hewan',
             'jenis_vaksin' => 'required|string|max:200',
             'tanggal_vaksin' => 'required|date|after_or_equal:today',
@@ -321,7 +322,7 @@ class ReminderVaksinasiController extends Controller
             $vaksinasi = ReminderVaksinasi::create($validated);
 
             Log::info('✅ Vaksinasi reminder created', [
-                'id' => $vaksinasi->id,
+                'id' => $vaksinasi->id_vaksinasi,
                 'hewan' => $validated['id_hewan']
             ]);
 
