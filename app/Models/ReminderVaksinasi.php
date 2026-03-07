@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ReminderVaksinasi extends Model
 {
+
+    protected $table = 'reminder_vaksinasi';
     protected $fillable = [
         'id_pasien',
         'id_hewan',
@@ -15,7 +17,7 @@ class ReminderVaksinasi extends Model
     ];
 
     protected $casts = [
-        'tanggal_vaksin', 'date'
+        'tanggal_vaksin'=> 'date'
     ];
 
     public function pasien(){

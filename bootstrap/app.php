@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(base_path('routes/auth.php'));
         }
     )
+    ->withSchedule(function (Schedule $schedule){
+        $schedule->command('reminder:vaksin')->dailyAt('08:00')->timezone('Asia/Jakarta')->withoutOverlapping()->runInBackground();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,

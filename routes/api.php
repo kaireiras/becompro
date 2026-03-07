@@ -18,6 +18,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\PublicPromoController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\ReminderVaksinasiController;
 
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/media', [MediaController::class, 'index']);
@@ -30,6 +31,10 @@ Route::withoutMiddleware([
     Route::post('/whatsapp/send', [WhatsappController::class, 'send']);
 });
 
+ Route::get('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'index']);
+    Route::post('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'store']);
+    Route::put('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'update']);
+    Route::delete('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'destroy']);
 
 require __DIR__. '/auth.php';
 
@@ -61,6 +66,15 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/dashboard/statistics', [DashboardController::class, 'getStatistics']);
     Route::get('/dashboard/clinic-summary', [DashboardController::class, 'getClinicSummary']);
     Route::get('/dashboard/recent-transactions', [DashboardController::class, 'getRecentTransactions']);
+
+    // Manual trigger reminder
+    Route::post('/reminder-vaksinasi/send-manual', [ReminderVaksinasiController::class, 'sendManualReminder']);
+    
+    // Get reminder logs
+    Route::get('/reminder-vaksinasi/logs', [ReminderVaksinasiController::class, 'getReminderLogs']);
+    
+    // Trigger scheduled reminders manually
+    Route::post('/reminder-vaksinasi/send-scheduled', [ReminderVaksinasiController::class, 'sendScheduledVaksinasi']);
 });
 
 
@@ -74,4 +88,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/profile', [UserProfileController::class, 'show']);
     Route::put('/profile', [UserProfileController::class, 'update']);
     Route::put('/profile/password', [UserProfileController::class, 'updatePassword']);
+
+    // Route::get('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'index']);
+    // Route::post('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'store']);
+    // Route::put('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'update']);
+    // Route::delete('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'destroy']);
 });

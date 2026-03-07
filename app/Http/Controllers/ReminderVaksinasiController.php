@@ -7,6 +7,8 @@ use Carbon\Carbon;
 use Http;
 use Illuminate\Http\Request;
 use App\Models\ReminderVaksinasi;
+use Illuminate\Support\Facades\Log;
+
 
 class ReminderVaksinasiController extends Controller
 {
