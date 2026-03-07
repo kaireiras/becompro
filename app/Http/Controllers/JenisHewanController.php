@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\JenisHewan;
-use Illuminate\Http\Request;
 use App\Models\Hewan;
 use App\Models\Reservation;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class JenisHewanController extends Controller
@@ -13,18 +13,35 @@ class JenisHewanController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = JenisHewan::with('pasien'); //  Load relationship
+            $query = JenisHewan::with('pasien');
             
-            //  Filter by pasien if provided
+            //filter
             if ($request->has('id_pasien')) {
                 $query->where('id_pasien', $request->id_pasien);
             }
             
             $jenisHewans = $query->get();
             
-            Log::info('📦 Jenis Hewan fetched:', ['count' => $jenisHewans->count()]);
+            //custom formatted json
+            $formatted = $jenisHewans->map(function($jenis) {
+                $pemilik = [];
+                if ($jenis->pasien) {
+                    $pemilik = [[
+                        'id_pemilik' => $jenis->pasien->id,
+                        'nama_pemilik' => $jenis->pasien->username,
+                    ]];
+                }
+
+                return [
+                    'id' => $jenis->id_jenisHewan,
+                    'nama_jenis' => $jenis->nama_jenis,
+                    'pemilik' => $pemilik,
+                ];
+            });
             
-            return response()->json($jenisHewans);
+            Log::info('📦 Jenis Hewan fetched:', ['count' => $formatted->count()]);
+            
+            return response()->json($formatted);
         } catch (\Exception $e) {
             Log::error('Error fetching jenis hewan:', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal memuat data jenis hewan'], 500);
@@ -39,7 +56,7 @@ class JenisHewanController extends Controller
         ]);
 
         try {
-            //  Check: Apakah pasien ini sudah punya jenis hewan dengan nama yang sama?
+            //duplicate check
             $exists = JenisHewan::where('id_pasien', $validated['id_pasien'])
                 ->where('nama_jenis', $validated['nama_jenis'])
                 ->exists();
@@ -52,7 +69,7 @@ class JenisHewanController extends Controller
 
             $jenisHewan = JenisHewan::create($validated);
 
-            Log::info(' Jenis Hewan created:', ['id' => $jenisHewan->id_jenisHewan]);
+            Log::info('✅ Jenis Hewan created:', ['id' => $jenisHewan->id_jenisHewan]);
 
             return response()->json([
                 'message' => 'Jenis hewan berhasil ditambahkan',
@@ -65,7 +82,7 @@ class JenisHewanController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, JenisHewan $jenisHewan) //
     {
         $validated = $request->validate([
             'nama_jenis' => 'required|string|max:255',
@@ -73,24 +90,27 @@ class JenisHewanController extends Controller
         ]);
 
         try {
-            $jenisHewan = JenisHewan::findOrFail($id);
-            
-            //  Security: Pastikan pasien hanya bisa edit jenis hewan miliknya
-            if ($request->user()->role === 'patient' && $jenisHewan->id_pasien != $request->user()->id) {
+            // ✅ Authorization check (dari controller kamu)
+            if ($request->user()->role === 'patient' && 
+                $jenisHewan->id_pasien != $request->user()->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $jenisHewan->update($validated);
 
-            $affectedHewanIds = Hewan::where('id_jenisHewan', $id)->pluck('id_hewan')->toArray();
+            // ✅ Cascade update (dari controller kamu)
+            $affectedHewanIds = Hewan::where('id_jenisHewan', $jenisHewan->id_jenisHewan)
+                ->pluck('id_hewan')->toArray();
 
-            Hewan::where('id_jenisHewan', $id)->update(['id_pasien' => $validated['id_pasien']]);
+            Hewan::where('id_jenisHewan', $jenisHewan->id_jenisHewan)
+                ->update(['id_pasien' => $validated['id_pasien']]);
 
             if (!empty($affectedHewanIds)) {
-                Reservation::whereIn('id_hewan', $affectedHewanIds)->update(['id_pasien' => $validated['id_pasien']]);
+                Reservation::whereIn('id_hewan', $affectedHewanIds)
+                    ->update(['id_pasien' => $validated['id_pasien']]);
             }
 
-            Log::info(' Jenis Hewan updated:', ['id' => $id]);
+            Log::info('✅ Jenis Hewan updated:', ['id' => $jenisHewan->id_jenisHewan]);
 
             return response()->json([
                 'message' => 'Jenis hewan berhasil diupdate',
@@ -103,12 +123,10 @@ class JenisHewanController extends Controller
         }
     }
 
-    public function destroy($id)
+    public function destroy(JenisHewan $jenisHewan) // ✅ Implicit binding
     {
         try {
-            $jenisHewan = JenisHewan::findOrFail($id);
-            
-            //  Check: Apakah masih ada hewan yang menggunakan jenis ini?
+            // ✅ Check constraint (dari controller temanmu)
             if ($jenisHewan->hewans()->count() > 0) {
                 return response()->json([
                     'message' => 'Tidak dapat menghapus jenis hewan yang masih memiliki data hewan'
@@ -117,7 +135,7 @@ class JenisHewanController extends Controller
 
             $jenisHewan->delete();
 
-            Log::info(' Jenis Hewan deleted:', ['id' => $id]);
+            Log::info('✅ Jenis Hewan deleted:', ['id' => $jenisHewan->id_jenisHewan]);
 
             return response()->json([
                 'message' => 'Jenis hewan berhasil dihapus'
