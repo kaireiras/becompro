@@ -21,6 +21,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\ReminderVaksinasiController;
 use App\Http\Controllers\JenisVaksinController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/media', [MediaController::class, 'index']);
@@ -41,7 +42,12 @@ Route::apiResource('jenis-vaksin', JenisVaksinController::class);
 Route::get('/faq', [FaqController::class, 'index']);
 Route::get('/faq/{id}', [FaqController::class, 'show']);
 Route::apiResource('faq', FaqController::class)->except(['index', 'show']);
-
+Route::get('/notifications/upcoming', [NotificationController::class, 'getUpcomingNotifications']);
+Route::get('/notifications/stats', [NotificationController::class, 'getStats']);
+Route::get('/notifications/pasien/{id_pasien}', [NotificationController::class, 'getByPasien']);
+Route::get('/notifications', [NotificationController::class, 'index']);
+Route::get('/notifications/{id}', [NotificationController::class, 'show']);
+Route::put('/notifications/{id}', [NotificationController::class, 'update']);
 
 require __DIR__. '/auth.php';
 
@@ -96,8 +102,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/profile', [UserProfileController::class, 'update']);
     Route::put('/profile/password', [UserProfileController::class, 'updatePassword']);
 
-    Route::get('/notifications/vaksinasi', [ReminderVaksinasiController::class, 'getUpcomingNotifications']);
-
+Route::get('/notifications/vaksinasi', [NotificationController::class, 'getUpcomingNotifications']);
     // Route::get('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'index']);
     // Route::post('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'store']);
     // Route::put('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'update']);
