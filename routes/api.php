@@ -28,16 +28,20 @@ Route::get('/media', [MediaController::class, 'index']);
 Route::get('/media/statistics', [MediaController::class, 'statistics']);
 Route::get('/public/promos', [PublicPromoController::class, 'index']);
 Route::get('/system-info', [SystemInfoController::class, 'index']);
+Route::withoutMiddleware(['web', \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])->group(function () {
+    Route::post('/reminder-vaksinasi/send-manual', [ReminderVaksinasiController::class, 'sendManualReminder']);
+    Route::post('/reminder-vaksinasi/send-scheduled', [ReminderVaksinasiController::class, 'sendScheduledVaksinasi']);
+});
 Route::withoutMiddleware([
     \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class
 ])->group(function () {
     Route::post('/whatsapp/send', [WhatsappController::class, 'send']);
 });
 
- Route::get('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'index']);
-    Route::post('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'store']);
-    Route::put('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'update']);
-    Route::delete('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'destroy']);
+Route::get('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'index']);
+Route::post('/reminder-vaksinasi', [ReminderVaksinasiController::class, 'store']);
+Route::put('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'update']);
+Route::delete('/reminder-vaksinasi/{id}', [ReminderVaksinasiController::class, 'destroy']);
 Route::apiResource('jenis-vaksin', JenisVaksinController::class);
 Route::get('/faq', [FaqController::class, 'index']);
 Route::get('/faq/{id}', [FaqController::class, 'show']);
@@ -48,6 +52,9 @@ Route::get('/notifications/pasien/{id_pasien}', [NotificationController::class, 
 Route::get('/notifications', [NotificationController::class, 'index']);
 Route::get('/notifications/{id}', [NotificationController::class, 'show']);
 Route::put('/notifications/{id}', [NotificationController::class, 'update']);
+
+
+
 
 require __DIR__. '/auth.php';
 
@@ -78,16 +85,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::get('/dashboard/statistics', [DashboardController::class, 'getStatistics']);
     Route::get('/dashboard/clinic-summary', [DashboardController::class, 'getClinicSummary']);
-    Route::get('/dashboard/recent-transactions', [DashboardController::class, 'getRecentTransactions']);
-
-    // Manual trigger reminder
-    Route::post('/reminder-vaksinasi/send-manual', [ReminderVaksinasiController::class, 'sendManualReminder']);
-    
+    Route::get('/dashboard/recent-transactions', [DashboardController::class, 'getRecentTransactions']);    
     // Get reminder logs
     Route::get('/reminder-vaksinasi/logs', [ReminderVaksinasiController::class, 'getReminderLogs']);
     
-    // Trigger scheduled reminders manually
-    Route::post('/reminder-vaksinasi/send-scheduled', [ReminderVaksinasiController::class, 'sendScheduledVaksinasi']);
 });
 
 

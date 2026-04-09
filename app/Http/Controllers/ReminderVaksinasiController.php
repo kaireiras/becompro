@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\ReminderLog;
+use App\Notifications\ReminderVaksinasiNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use App\Models\ReminderVaksinasi;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
-
 class ReminderVaksinasiController extends Controller
 {
     public function sendScheduledVaksinasi(){
@@ -58,8 +58,9 @@ class ReminderVaksinasiController extends Controller
                 }
 
                 $sent = $this->sendWhatsAppReminder($vaksinasi, $reminderType);
+                $sentEmail = $this->sendEmailReminder($vaksinasi, $reminderType);
 
-                if($sent){
+                if($sent || $sentEmail){
                     ReminderLog::create([
                         'id_vaksinasi'=>$vaksinasi->id_vaksinasi,
                         'reminder_type'=>$logReminderType,
@@ -68,17 +69,35 @@ class ReminderVaksinasiController extends Controller
                         'phone_number'=> $vaksinasi->hewan->pasien->phone_number ?? null,
                     ]);
 
-                    Notification::create([
-                        'id_vaksinasi' => $vaksinasi->id_vaksinasi,
-                        'id_pasien' => $vaksinasi->id_pasien,
-                        'recipient' => $vaksinasi->hewan->pasien->phone_number ?? 'N/A',
-                        'channel' => 'wa',
-                        'waktu_kirim' => now(),
-                        'tipe' => 'vaksinasi',
-                        'status' => 'sent',
-                        'reminder_type' => $logReminderType,
-                        'error_message' => null,             
-                    ]);
+                        // ✅ Notification untuk WhatsApp
+                    if($sent) {
+                        Notification::create([
+                            'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                            'id_pasien' => $vaksinasi->id_pasien,
+                            'recipient' => $vaksinasi->hewan->pasien->phone_number ?? 'N/A',
+                            'channel' => 'wa',
+                            'waktu_kirim' => now(),
+                            'tipe' => 'vaksinasi',
+                            'status' => 'sent',
+                            'reminder_type' => $logReminderType,
+                            'error_message' => null,             
+                        ]);
+                    }
+
+                    // ✅ Notification untuk Email
+                    if($sentEmail) {
+                        Notification::create([
+                            'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                            'id_pasien' => $vaksinasi->id_pasien,
+                            'recipient' => $vaksinasi->hewan->pasien->email ?? 'N/A',
+                            'channel' => 'email',
+                            'waktu_kirim' => now(),
+                            'tipe' => 'vaksinasi',
+                            'status' => 'sent',
+                            'reminder_type' => $logReminderType,
+                            'error_message' => null,             
+                        ]);
+                    }
 
                     if($reminderType === 'same_day'){
                         $interval = $vaksinasi->jenisVaksin->interval ?? null;
@@ -237,7 +256,7 @@ class ReminderVaksinasiController extends Controller
                 ->findOrFail($validated['id_vaksinasi']);
 
             // Hitung selisih hari dari hari ini ke tanggal vaksin
-            $daysUntil = Carbon::now()->startOfDay()->diffInDays(
+            $daysUntil = (int) Carbon::now()->startOfDay()->diffInDays(
                 Carbon::parse($vaksinasi->tanggal_vaksin)->startOfDay(),
                 false
             );
@@ -415,6 +434,35 @@ class ReminderVaksinasiController extends Controller
             ], 500);
         }
     }
+    private function sendEmailReminder($vaksinasi, $reminderType)
+    {
+        try {
+            $pasien = $vaksinasi->hewan->pasien;
+
+            if (!$pasien || !$pasien->email) {
+                Log::warning('no email found', [
+                    'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                    'hewan_id' => $vaksinasi->id_hewan
+                ]);
+                return false;
+            }
+
+            // Kirim notifikasi email
+            $pasien->notify(new ReminderVaksinasiNotification ($vaksinasi, $reminderType));
+
+            Log::info('email sent', [
+                'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                'email' => $pasien->email,
+                'reminder_type' => $reminderType
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('error sending email: ' . $e->getMessage());
+            return false;
+        }
+    }
 
     // Create new vaccination reminder
     public function store(Request $request)
@@ -571,6 +619,77 @@ class ReminderVaksinasiController extends Controller
             }
 
             $vaksinasi->update($validated);
+            if (isset($validated['tanggal_vaksin'])) {
+                $daysUntilAfterUpdate = Carbon::now()->startOfDay()
+                    ->diffInDays(Carbon::parse($validated['tanggal_vaksin'])->startOfDay(), false);
+                
+                if (in_array($daysUntilAfterUpdate, [0, 3, 7])) {
+                    $reminderTypeMap = [
+                        0 => 'same_day',
+                        3 => '3_days_sebelum',
+                        7 => '7_day_before'
+                    ];
+                    
+                    $reminderType = $reminderTypeMap[$daysUntilAfterUpdate];
+                    $logReminderType = $this->normalizeReminderTypeForLog($reminderType);
+                    
+                    // Check apakah sudah dikirim sebelomnya
+                    $alreadySent = ReminderLog::where('id_vaksinasi', $vaksinasi->id_vaksinasi)
+                        ->where('reminder_type', $logReminderType)
+                        ->where('status', 'sent')
+                        ->exists();
+                    
+                    if (!$alreadySent) {
+                        $sent = $this->sendWhatsAppReminder($vaksinasi, $reminderType);
+
+                        $sentEmail = $this->sendEmailReminder($vaksinasi, $reminderType);
+                        
+                        if ($sent || $sentEmail) {
+                            ReminderLog::create([
+                                'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                                'reminder_type' => $logReminderType,
+                                'sent_at' => now(),
+                                'status' => 'sent',
+                                'phone_number' => $vaksinasi->hewan->pasien->phone_number ?? null,
+                            ]);
+
+                            if ($sent) {
+                                Notification::create([
+                                    'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                                    'id_pasien' => $vaksinasi->id_pasien,
+                                    'recipient' => $vaksinasi->hewan->pasien->phone_number ?? 'N/A',
+                                    'channel' => 'wa',
+                                    'waktu_kirim' => now(),
+                                    'tipe' => 'vaksinasi',
+                                    'status' => 'sent',
+                                    'reminder_type' => $logReminderType,
+                                    'error_message' => null,
+                                ]);
+                            }
+
+                            if ($sentEmail) {
+                                Notification::create([
+                                    'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                                    'id_pasien' => $vaksinasi->id_pasien,
+                                    'recipient' => $vaksinasi->hewan->pasien->email ?? 'N/A',
+                                    'channel' => 'email',
+                                    'waktu_kirim' => now(),
+                                    'tipe' => 'vaksinasi',
+                                    'status' => 'sent',
+                                    'reminder_type' => $logReminderType,
+                                    'error_message' => null,
+                                ]);
+                            }
+                            
+                            Log::info('✅ Auto-sent reminder after schedule update', [
+                                'id_vaksinasi' => $vaksinasi->id_vaksinasi,
+                                'reminder_type' => $reminderType,
+                                'days_until' => $daysUntilAfterUpdate,
+                            ]);
+                        }
+                    }
+                }
+            }
 
             $stats = [
                 'total_scheduled' => ReminderVaksinasi::where('id_hewan', $vaksinasi->id_hewan)->count(),
